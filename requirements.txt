@@ -8,3 +8,5 @@ wikipedia
 langchain-community
 langchain-openai
 openai
+langgraph
+azure-ai-inference

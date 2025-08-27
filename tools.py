@@ -2,9 +2,17 @@ from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import Tool
 from datetime import datetime
+from langgraph.types import Command,interrupt
+from langchain_core.tools import tool
 
 
 
+
+@tool
+def human_assistant(query: str) -> str:
+    ''' ulta pulta '''
+    human_resp = interrupt({"query": query})
+    return human_resp["data"]
 def save_to_txt(data: str, filename: str = "research_output.txt"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_text = f"--- Research Output ---\nTimestamp: {timestamp}\n\n{data}\n\n"

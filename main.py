@@ -1,135 +1,155 @@
 import os
-from langchain_google_genai import GoogleGenerativeAI, ChatGoogleGenerativeAI
 from dotenv import load_dotenv
-from pydantic import BaseModel
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain.agents import create_tool_calling_agent, AgentExecutor
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
-from typing import List
-from tools import search_tool, wiki_tool, save_tool
+from langchain.agents import create_tool_calling_agent, AgentExecutor
 
-# Load API keys
+from tools import search_tool, wiki_tool, save_tool, human_assistant
+from langgraph.graph import StateGraph, START, END
+from typing_extensions import TypedDict
+from typing import Annotated
+from langgraph.graph.message import add_messages
+
+from system_prompts import prompt1, spy, gpt_prompt
+
+# ------------ State type --------------
+class State(TypedDict):
+    messages: Annotated[list, add_messages]
+    # optional routing key (set by node functions)
+    next: str | None
+
+# --------------------Load API keys -------------------------
 load_dotenv()
 gemini_key = os.getenv("GEMINI_API_KEY")
-openai_key = os.getenv("OPENAI_API_KEY")
+openai_key = os.getenv("SHAYAN_API_KEY")
+
+# -------------------- Node implementations ------------------
+def interact_step1(state: State):
+    """
+    Multimodel agent entry node. Uses Gemini to produce a first-pass reply.
+    Returns messages and does NOT set 'next' by itself.
+    """
+    last_message = state["messages"][-1]
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", google_api_key=gemini_key)
+    tools = [search_tool, wiki_tool, save_tool, human_assistant]
+    prompt = prompt1()
+    agent = create_tool_calling_agent(
+        llm=llm,
+        tools=tools,
+        prompt=prompt
+    )
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    reply = agent_executor.invoke({"query": last_message})
+
+    return {"messages": [{"role": "assistant", "content": reply["output"]}], "next": None}
 
 
-class ResearchResponse(BaseModel):
-    topic: str
-    summary: str
-    severity: str  # e.g., "Low", "Medium", "High", "Critical"
-    risk_score: float  # CVSS or internal risk rating
-    sources: List[str]
-    tools_used: List[str]
-    # recommendation: [str] = None  # Suggested fix or remediation
-    # tags: [List[str]] = []  # Keywords like "RCE", "0-day", "Authentication Bypass"
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
-# llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash",
-#                              google_api_key=api_key,
-#
-#                              )
-# resp = llm.invoke("Sing a ballad of LangChain")
-# print(resp)
-#
-# llm = ChatOpenAI(model="gpt-3.5-turbo-instruct",
-#                  openai_api_key="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"
-#                  )
-
-print("Choose llm and it's model:")
-print("1.Openai - gpt-4o-mini")
-print("2.Gemini - gemini-1.5-flash")
-print("3.Gemini - gemini-2.0-flash")
-print("4.Gemini - gemini-2.5-flash")
-print("5.Gemini - gemini-2.5-pro")
-choice = int(input("Enter the preference: \n"))
-
-
-def model1():
-    print("Openai 4o mini ready to rock")
-    return ChatOpenAI(
-        model="gpt-4o-mini",
+def define_path_gpt(state: State):
+    last_message = state["messages"][-1]
+    llm = ChatOpenAI(
+        model="gpt-4o",
         api_key=openai_key,
         base_url="https://models.github.ai/inference"
+    )
+    tools = [search_tool, wiki_tool, save_tool]
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an orchestrator agent. Decide the best route."),
+
+        MessagesPlaceholder("agent_scratchpad"),  # 👈 required!
+    ])
+    agent = create_tool_calling_agent(
+        llm=llm,
+        tools=tools,
+        prompt=prompt
+    )
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    if hasattr(last_message, "content"):
+        input_text = last_message.content
+    else:
+        input_text = last_message.get("content", "")
+
+    reply = agent_executor.invoke({"input": input_text})
+
+    # 👇 return both the assistant’s message and the route
+    return {
+        "messages": [{
+            "role": "Reconnaissance or Cybersecurity assistance",
+            "content": reply["output"]
+        }],
+        "next": "Researcher"   # must match node name
+    }
+
+
+
+def info_spy_step3(state: State):
+    """
+    Researcher node: runs deeper analysis / reconnaissance using DeepSeek-like model and tools.
+    """
+    last_message = state["messages"][-1]
+    llm = ChatOpenAI(
+        model="deepseek/DeepSeek-V3-0324",
+        api_key=openai_key,
+        base_url="https://models.github.ai/inference"
+    )
+    tools = [search_tool, wiki_tool, human_assistant]
+    prompt = spy()
+    agent = create_tool_calling_agent(
+        llm=llm,
+        prompt=prompt,
+        tools=tools
+    )
+    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    reply = agent_executor.invoke({"query": last_message})
+
+    return {"messages": [{"role": "assistant", "content": reply["output"]}], "next": None}
+
+
+# -------------------- Build graph -------------------------
+graph = StateGraph(State)
+
+# Add nodes (name must match the string keys used in conditional edges)
+graph.add_node("multimodel_agent", interact_step1)
+graph.add_node("Router&analysis", define_path_gpt)
+graph.add_node("Researcher", info_spy_step3)
+
+# Edges: START -> multimodel_agent -> Router&analysis -> conditional -> Researcher or END
+graph.add_edge(START, "multimodel_agent")
+graph.add_edge("multimodel_agent", "Router&analysis")
+
+# conditional: the condition function reads the state's 'next' key and returns the matching mapping key
+# mapping keys must be strings; map "Researcher" -> "Researcher" (node name)
+graph.add_conditional_edges(
+    "Router&analysis",
+    lambda state: state.get("next"),
+    {"Researcher": "Researcher"}
 )
 
+# fallback/explicit ends
+graph.add_edge("multimodel_agent", END)
+graph.add_edge("Router&analysis", END)
 
-def model2():
-    print("Gemini 1.5 Flash ready to rock 🤧")
-    return ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=gemini_key)
+app = graph.compile()
 
+# -------------------- Orchestrator loop -------------------------
+def run_orchestrator():
+    state: State = {"messages": [], "next": None}
 
-def model3():
-    return ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=gemini_key)
+    while True:
+        user_input = input("Message: ")
+        if user_input.strip().lower() == "exit":
+            print("Bye 👋")
+            break
 
+        state["messages"].append({"role": "user", "content": user_input})
+        # run graph — this will execute nodes and update state
+        state = app.invoke(state)   # run graph
 
-def model4():
-    print("Gemini 2.5 Flash ready to rock 🤧")
-    return ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=gemini_key)
+        # latest assistant message (if any)
+        if state["messages"]:
+            print("Assistant:", state["messages"][-1]["content"])
+        else:
+            print("Assistant: <no output>")
 
-
-def model5():
-    print("Gemini 2.5 Pro ready to rock 🤧")
-    return ChatGoogleGenerativeAI(model="gemini-2.5-pro", google_api_key=gemini_key)
-
-
-actions = {
-    1: model1,
-    2: model2,
-    3: model3,
-    4: model4,
-    5: model5
-}
-llm = actions.get(choice, model4)()
-parser = PydanticOutputParser(pydantic_object=ResearchResponse)
-
-prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """
-            You are a Cybersecurity expert assistant that will help find bug from the given scenario.
-            Answer the user query and use neccessary tools. 
-            Wrap the output in this format and provide no other text\n{format_instructions} , drop the format if it is irrelevant to the prompt
-            """,
-        ),
-        ("placeholder", "{chat_history}"),
-        ("human", "{query} "),
-        ("placeholder", "{agent_scratchpad}"),
-    ]
-).partial(format_instructions=parser.get_format_instructions())
-
-tools = [search_tool, wiki_tool, save_tool]
-agent = create_tool_calling_agent(
-    llm=llm,
-    prompt=prompt,
-    tools=tools
-)
-agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-
-
-
-# ---- CLI Loop ----
-while True:
-    query = input("\nEnter Prompt (or type 'exit' to quit): ")
-    if query.strip().lower() == "exit":
-        print("Exiting... Goodbye! 👋")
-        break
-
-    try:
-        resp = agent_executor.invoke({"query": query})
-        output_text = resp.get("output", "")
-
-        try:
-            str_resp = parser.parse(output_text)
-            print("\nStructured Response:\n", str_resp)
-        except Exception as e:
-            print("\nRaw Response:\n", output_text)
-
-    except Exception as e:
-        print(f"Error: {e}")
-
+if __name__ == "__main__":
+    run_orchestrator()
