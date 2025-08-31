@@ -13,10 +13,10 @@ def prompt1():
         topic: str
         summary: str
         severity: str
-
-        # risk_score: float
-        # sources: List[str]
-        # tools_used: List[str]
+        # ad: float
+        human_in_loop: List[dict]
+        sources: List[str]
+        tools_used: List[str]
 
         class Config:
             arbitrary_types_allowed = True

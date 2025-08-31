@@ -10,3 +10,8 @@ langchain-openai
 openai
 langgraph
 azure-ai-inference
+# Download from GitHub
+git clone https://github.com/github/codeql.git
+cd codeql
+# Build (or download prebuilt from releases)
+./scripts/install-dependencies.sh
