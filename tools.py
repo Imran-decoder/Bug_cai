@@ -1,18 +1,63 @@
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="langchain_community.utilities.duckduckgo_search")
 from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import Tool
 from datetime import datetime
-from langgraph.types import Command,interrupt
+from langgraph.types import Command, interrupt
 from langchain_core.tools import tool
+from ddgs import DDGS
+import subprocess
 
 
+# from langchain.tools import Tool
+
+
+@tool
+def run_codeql(query: str, db_path: str = "my-database") -> str:
+    """
+    Runs a CodeQL query against a given database.
+    Assumes CodeQL CLI is installed and database is already created.
+    """
+    try:
+        result = subprocess.run(
+            ["codeql", "query", "run", query, "--database", db_path],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        return f"Error running CodeQL: {e.stderr}"
+
+
+codeql_tool = Tool(
+    name="codeql_query",
+    func=run_codeql,
+    description=(
+        "Run a CodeQL query against the codebase database. "
+        "Input should be the path to a .ql query file."
+    ),
+)
 
 
 @tool
 def human_assistant(query: str) -> str:
-    ''' ulta pulta '''
+    """Tool that asks the human a question and waits for their answer."""
     human_resp = interrupt({"query": query})
-    return human_resp["data"]
+
+    # Safely handle dicts returned by interrupt
+    if isinstance(human_resp, dict):
+        # Prefer the 'data' field if present
+        if "data" in human_resp:
+            return str(human_resp["data"])
+        else:
+            return str(human_resp)  # fallback
+
+    # Otherwise just stringify
+    return str(human_resp)
+
+
 def save_to_txt(data: str, filename: str = "research_output.txt"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_text = f"--- Research Output ---\nTimestamp: {timestamp}\n\n{data}\n\n"
@@ -29,10 +74,16 @@ save_tool = Tool(
     description="Saves structured research data to a text file.",
 )
 
-search = DuckDuckGoSearchRun()
+
+def duckduckgo_search(query: str) -> str:
+    with DDGS() as ddgs:
+        results = [r["body"] for r in ddgs.text(query, max_results=5)]
+        return "\n".join(results)
+
+
 search_tool = Tool(
     name="search",
-    func=search.run,
+    func=duckduckgo_search,
     description="Search the web for information",
 )
 

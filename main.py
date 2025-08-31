@@ -1,11 +1,12 @@
 import os
+
 from dotenv import load_dotenv
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import ChatOpenAI
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 
-from tools import search_tool, wiki_tool, save_tool, human_assistant
+from tools import search_tool, wiki_tool, save_tool, human_assistant,codeql_tool
 from langgraph.graph import StateGraph, START, END
 from typing_extensions import TypedDict
 from typing import Annotated
@@ -22,7 +23,7 @@ class State(TypedDict):
 # --------------------Load API keys -------------------------
 load_dotenv()
 gemini_key = os.getenv("GEMINI_API_KEY")
-openai_key = os.getenv("SHAYAN_API_KEY")
+openai_key = os.getenv("ARSHAD_API_KEY")
 
 # -------------------- Node implementations ------------------
 def interact_step1(state: State):
@@ -31,7 +32,13 @@ def interact_step1(state: State):
     Returns messages and does NOT set 'next' by itself.
     """
     last_message = state["messages"][-1]
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", google_api_key=gemini_key)
+    # llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", google_api_key=gemini_key)
+    llm = ChatOpenAI(
+        model="xai/grok-3",
+        # model="gpt-4o-mini",
+        api_key=openai_key,
+        base_url="https://models.github.ai/inference",
+    )
     tools = [search_tool, wiki_tool, save_tool, human_assistant]
     prompt = prompt1()
     agent = create_tool_calling_agent(
@@ -40,15 +47,22 @@ def interact_step1(state: State):
         prompt=prompt
     )
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"query": last_message})
+    reply = agent_executor.invoke({"input": last_message})
 
-    return {"messages": [{"role": "assistant", "content": reply["output"]}], "next": None}
+    # make sure reply is a string
+    if isinstance(reply, dict):
+        reply_text = reply.get("output", str(reply))
+    else:
+        reply_text = str(reply)
+
+    return {"messages": [{"role": "assistant", "content": reply_text}], "next": None}
 
 
 def define_path_gpt(state: State):
     last_message = state["messages"][-1]
     llm = ChatOpenAI(
-        model="gpt-4o",
+        # model="gpt-3.5-turbo",
+        model="xai/grok-3",
         api_key=openai_key,
         base_url="https://models.github.ai/inference"
     )
@@ -69,17 +83,15 @@ def define_path_gpt(state: State):
     else:
         input_text = last_message.get("content", "")
 
-    reply = agent_executor.invoke({"input": input_text})
+    reply = agent_executor.invoke({"input": last_message})
 
-    # 👇 return both the assistant’s message and the route
-    return {
-        "messages": [{
-            "role": "Reconnaissance or Cybersecurity assistance",
-            "content": reply["output"]
-        }],
-        "next": "Researcher"   # must match node name
-    }
+    # make sure reply is a string
+    if isinstance(reply, dict):
+        reply_text = reply.get("output", str(reply))
+    else:
+        reply_text = str(reply)
 
+    return {"messages": [{"role": "assistant", "content": reply_text}], "next": None}
 
 
 def info_spy_step3(state: State):
@@ -88,11 +100,11 @@ def info_spy_step3(state: State):
     """
     last_message = state["messages"][-1]
     llm = ChatOpenAI(
-        model="deepseek/DeepSeek-V3-0324",
+        model="deepseek/DeepSeek-R1",
         api_key=openai_key,
         base_url="https://models.github.ai/inference"
     )
-    tools = [search_tool, wiki_tool, human_assistant]
+    tools = [search_tool, wiki_tool]
     prompt = spy()
     agent = create_tool_calling_agent(
         llm=llm,
@@ -100,9 +112,15 @@ def info_spy_step3(state: State):
         tools=tools
     )
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"query": last_message})
+    reply = agent_executor.invoke({"input": last_message})
 
-    return {"messages": [{"role": "assistant", "content": reply["output"]}], "next": None}
+    # make sure reply is a string
+    if isinstance(reply, dict):
+        reply_text = reply.get("output", str(reply))
+    else:
+        reply_text = str(reply)
+
+    return {"messages": [{"role": "assistant", "content": reply_text}], "next": None}
 
 
 # -------------------- Build graph -------------------------
@@ -147,7 +165,7 @@ def run_orchestrator():
 
         # latest assistant message (if any)
         if state["messages"]:
-            print("Assistant:", state["messages"][-1]["content"])
+            print("Assistant:", state["messages"][-1])
         else:
             print("Assistant: <no output>")
 
