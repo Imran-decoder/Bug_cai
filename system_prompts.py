@@ -1,5 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from typing import List
 from langchain_core.output_parsers import PydanticOutputParser
 
@@ -9,42 +9,43 @@ from langchain_core.output_parsers import PydanticOutputParser
 
 # ---------- your Pydantic output model, like you shit ----------
 def prompt1():
-    class ResearchResponse(BaseModel):
-        topic: str
-        summary: str
-        severity: str
-        # ad: float
-        human_in_loop: List[dict]
-        sources: List[str]
-        tools_used: List[str]
-
-        class Config:
-            arbitrary_types_allowed = True
-
-    parser = PydanticOutputParser(pydantic_object=ResearchResponse)
+    # class ResearchResponse(BaseModel):
+    #     # topic: str
+    #     # summary: str
+    #     brief: str
+    #
+    #
+    #     # severity: str
+    #     # # ad: float
+    #     # human_in_loop: List[dict]
+    #     # sources: List[str]
+    #     # tools_used: List[str]
+    #
+    #     # class Config:
+    #     #     arbitrary_types_allowed = True
+    #
+    # try:
+    #     ResearchResponse(brief=1)
+    # except ValidationError as exc:
+    #     print(f'facing error', repr(exc.errors()[0]['type']))
+    # parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """
-                You are a Cybersecurity expert assistant that will help find bug from the given scenario.
+            {
+                "role": "system",
+                "content": """ You are a Cybersecurity expert assistant that will help find bug from the given scenario.
                 Answer the user query and use necessary tools. 
                 Your output will help other LLM to work on furthur task.
-                Wrap the output in this format and provide no other text\n{format_instructions} , 
-                drop the format if it is irrelevant to the prompt
-                """,
-            ),
-            ("placeholder", "{chat_history}"),
-            ("human", "{query} "),
-            ("placeholder", "{agent_scratchpad}"),
-        ]
-    ).partial(format_instructions=parser.get_format_instructions())
+                     """
 
+            }
+        ]
+    )
     return prompt
 
 
-def gpt_prompt() :
+def gpt_prompt():
     prompt = ChatPromptTemplate.from_messages(
         [
             {

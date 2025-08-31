@@ -40,14 +40,18 @@ def interact_step1(state: State):
         base_url="https://models.github.ai/inference",
     )
     tools = [search_tool, wiki_tool, save_tool, human_assistant]
-    prompt = prompt1()
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an orchestrator agent. help the user in cybersecurity."),
+
+        MessagesPlaceholder("agent_scratchpad"),  # 👈 required!
+    ])
     agent = create_tool_calling_agent(
         llm=llm,
         tools=tools,
         prompt=prompt
     )
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"input": last_message})
+    reply = agent_executor.invoke({"query": last_message})
 
     # make sure reply is a string
     if isinstance(reply, dict):
@@ -78,18 +82,14 @@ def define_path_gpt(state: State):
         prompt=prompt
     )
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    if hasattr(last_message, "content"):
-        input_text = last_message.content
-    else:
-        input_text = last_message.get("content", "")
-
-    reply = agent_executor.invoke({"input": last_message})
+    reply = agent_executor.invoke({"query": last_message})
 
     # make sure reply is a string
     if isinstance(reply, dict):
         reply_text = reply.get("output", str(reply))
     else:
         reply_text = str(reply)
+    # print(reply_text)
 
     return {"messages": [{"role": "assistant", "content": reply_text}], "next": None}
 
@@ -100,26 +100,30 @@ def info_spy_step3(state: State):
     """
     last_message = state["messages"][-1]
     llm = ChatOpenAI(
-        model="deepseek/DeepSeek-R1",
+        model="deepseek/DeepSeek-V3-0324",
         api_key=openai_key,
         base_url="https://models.github.ai/inference"
     )
-    tools = [search_tool, wiki_tool]
-    prompt = spy()
+    tools = [search_tool, wiki_tool, codeql_tool]
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are an orchestrator agent. You are used for deep research and data collection."),
+
+        MessagesPlaceholder("agent_scratchpad"),  # 👈 required!
+    ])
     agent = create_tool_calling_agent(
         llm=llm,
         prompt=prompt,
         tools=tools
     )
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"input": last_message})
+    reply = agent_executor.invoke({"query": last_message})
 
     # make sure reply is a string
     if isinstance(reply, dict):
         reply_text = reply.get("output", str(reply))
     else:
         reply_text = str(reply)
-
+    # print(reply_text)
     return {"messages": [{"role": "assistant", "content": reply_text}], "next": None}
 
 
@@ -142,7 +146,8 @@ graph.add_conditional_edges(
     lambda state: state.get("next"),
     {"Researcher": "Researcher"}
 )
-
+# graph.add_edge("Router&analysis","Researcher")
+graph.add_edge("Researcher", "Router&analysis")
 # fallback/explicit ends
 graph.add_edge("multimodel_agent", END)
 graph.add_edge("Router&analysis", END)
