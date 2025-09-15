@@ -1,3 +1,12 @@
+webdriver-manager
+selenium
+ddgs
+typing-extensions
+langchain-core
+langchain-mcp-adapters
+pandasql
+pandas
+httpx
 langchain
 langchain_google_genai
 langchain-openai
@@ -10,8 +19,5 @@ langchain-openai
 openai
 langgraph
 azure-ai-inference
-# Download from GitHub
-#git clone https://github.com/github/codeql.git
-#cd codeql
-# Build (or download prebuilt from releases)
-#./scripts/install-dependencies.sh
+mcp
+
