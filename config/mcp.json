@@ -1,0 +1,12 @@
+{
+  "server": {
+    "github": {
+      "command": "python",
+      "args": ["tools/mcp_github_server.py"]
+    },
+    "directory": {
+      "command": "python",
+      "args": ["tools/mcp_directory_server.py"]
+    }
+  }
+}
