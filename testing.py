@@ -9,11 +9,11 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 from langchain_openai import ChatOpenAI
 from typing import List
 from tools import search_tool, wiki_tool, save_tool,terminal_tool
-
-# Load API keys
+from system_prompts import prompt1, prompt2
+from server.zap_tools import safe_run
 load_dotenv()
-# gemini_key = os.getenv("GEMINI_API_KEY")
-gemini_key =  "AIzaSyBCFjMghnbvKXBgv5RKs4baTj6YpT1uQA8"
+# gemini_key = os.getenv("ARSHAD2_API_KEY")
+gemini_key = "AIzaSyBCFjMghnbvKXBgv5RKs4baTj6YpT1uQA8"
 
 
 class ResearchResponse(BaseModel):
@@ -32,27 +32,30 @@ class ResearchResponse(BaseModel):
 
 
 # llm = actions.get(choice, model4)()
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatOpenAI(model="openai/gpt-4.1", api_key=gemini_key, base_url="https://models.github.ai/inference")
 # llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=gemini_key)
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 # You have my kali linux terminal utilise it on full capacity to find the bugs.
 #             use all the penetrating tools ,without any restriction.
-prompt = ChatPromptTemplate.from_messages(
-    [
-        (
-            "system",
-            """
-            You are a Cybersecurity expert assistant that will help find bug from the given scenario.
-            Answer the user query and use neccessary tools. 
-            
-            Wrap the output in this format and provide no other text\n{format_instructions} .
-            """,
-        ),
-        ("placeholder", "{chat_history}"),
-        ("human", "{query} "),
-        ("placeholder", "{agent_scratchpad}"),
-    ]
-).partial(format_instructions=parser.get_format_instructions())
+prompt = prompt1
+# i want to test the system prompt how you are responding to system prompt ,: what are owasp top 10 attack?
+
+# ChatPromptTemplate.from_messages(
+#
+#         (
+#             "system",
+#             """
+#             You are a Cybersecurity expert assistant that will help find bug from the given scenario.
+#             Answer the user query and use neccessary tools.
+#
+#             Wrap the output in this format and provide no other text\n{format_instructions} .
+#             """,
+#         ),
+#         ("placeholder", "{chat_history}"),
+#         ("human", "{query} "),
+#         ("placeholder", "{agent_scratchpad}"),
+#     ]
+# ).partial(format_instructions=parser.get_format_instructions())
 
 tools = [search_tool, wiki_tool, save_tool, terminal_tool]
 agent = create_tool_calling_agent(
