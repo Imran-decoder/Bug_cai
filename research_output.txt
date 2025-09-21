@@ -1,0 +1,62 @@
+--- Research Output ---
+Timestamp: 2025-09-21 14:11:57
+
+### **Research Report: WiFi Security Ports and Attack Vectors**
+
+#### **Executive Summary**
+WiFi networks expose several ports that are commonly targeted by attackers, including those used for management, authentication, and data transmission. Key vulnerabilities include weak encryption, misconfigurations, and unpatched services. Recommended next step: Conduct a static analysis of the target network's open ports and services.
+
+#### **Scope**
+- **Included**: Common WiFi-related ports (e.g., 22, 80, 443, 8080, 1900), associated protocols (e.g., HTTP, HTTPS, SSH, UPnP), and known vulnerabilities (e.g., CVE-2020-12695, CVE-2017-9417).
+- **Excluded**: Physical layer attacks (e.g., signal jamming), proprietary vendor-specific vulnerabilities.
+
+#### **High-Value Findings**
+1. **Port 22 (SSH) - Default Credentials and Brute Force Attacks**
+   - **Description**: SSH is often targeted for brute force attacks if weak credentials are used.
+   - **Severity**: High
+   - **Confidence**: 90%
+   - **Evidence**: [OWASP](https://owasp.org) lists SSH brute force as a common attack vector.
+
+2. **Port 80/443 (HTTP/HTTPS) - Web Interface Vulnerabilities**
+   - **Description**: Web interfaces for WiFi routers often suffer from XSS, CSRF, and outdated software.
+   - **Severity**: Medium
+   - **Confidence**: 85%
+   - **Evidence**: [NIST CVE Database](https://nvd.nist.gov) documents multiple CVEs for router web interfaces.
+
+3. **Port 1900 (UPnP) - Exploitable for LAN Access**
+   - **Description**: UPnP can be abused to bypass firewalls and gain internal network access.
+   - **Severity**: High
+   - **Confidence**: 80%
+   - **Evidence**: [US-CERT Alert](https://www.us-cert.gov) highlights UPnP as a significant risk.
+
+#### **Technical Evidence & Indicators**
+- **Ports**: 22, 80, 443, 8080, 1900
+- **Protocols**: SSH, HTTP, HTTPS, UPnP
+- **CVEs**:
+  - CVE-2020-12695 (UPnP vulnerability)
+  - CVE-2017-9417 (Broadcom WiFi driver flaw)
+
+#### **Threat / Attack Surface Analysis**
+Attackers typically:
+1. Scan for open ports on WiFi devices.
+2. Exploit default credentials or weak authentication.
+3. Use UPnP to pivot into internal networks.
+4. Deploy malware via compromised web interfaces.
+
+#### **Suggested Next Actions**
+1. **Static Analysis**: Use tools like `nmap` to scan for open ports (non-destructive).
+2. **Credentials Review**: Verify default credentials are changed.
+3. **Patch Management**: Check for firmware updates for all WiFi devices.
+4. **Dynamic Testing**: Route to "Dynamic" team for penetration testing (requires authorization).
+
+#### **Appendix**
+- **Sources**:
+  - OWASP: [Web Security Risks](https://owasp.org)
+  - NIST CVE Database: [CVE Search](https://nvd.nist.gov)
+  - US-CERT: [UPnP Alert](https://www.us-cert.gov)
+
+### **JSON Summary**
+```json
+{"summary": "WiFi networks expose several ports (e.g., 22, 80, 443, 1900) with common vulnerabilities like weak encryption and misconfigurations. Recommended next step: static analysis of open ports.", "scope": {"included": ["Ports 22, 80, 443, 8080", "Protocols SSH, HTTP, HTTPS, UPnP", "CVEs CVE-2020-12695, CVE-2017-9417"], "excluded": ["Physical layer attacks", "Vendor-specific vulnerabilities"]}, "findings": [{"title": "Port 22 (SSH) - Default Credentials and Brute Force Attacks", "severity": "High", "confidence": 90, "evidence_links": ["https://owasp.org"]}, {"title": "Port 80/443 (HTTP/HTTPS) - Web Interface Vulnerabilities", "severity": "Medium", "confidence": 85, "evidence_links": ["https://nvd.nist.gov"]}, {"title": "Port 1900 (UPnP) - Exploitable for LAN Access", "severity": "High", "confidence": 80, "evidence_links": ["https://www.us-cert.gov"]}], "ioc": ["Ports: 22, 80, 443, 8080, 1900", "Protocols: SSH, HTTP, HTTPS, UPnP", "CVEs: CVE-2020-12695, CVE-2017-9417"], "recommended_route": "Static", "confidence_score": 85}
+```
+

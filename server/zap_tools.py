@@ -31,23 +31,24 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 
+
 # ... existing code ...
 
 # Helper: blocking selenium worker (run in thread)
 def _selenium_exercise_worker(
-    target_url: str,
-    login_type: Optional[str],
-    login_url: Optional[str],
-    username: Optional[str],
-    password: Optional[str],
-    username_selector: Optional[str],
-    password_selector: Optional[str],
-    submit_selector: Optional[str],
-    payloads: Optional[List[str]],
-    out_prefix: str,
-    proxy: Optional[str],
-    headless: bool,
-    page_timeout: int,
+        target_url: str,
+        login_type: Optional[str],
+        login_url: Optional[str],
+        username: Optional[str],
+        password: Optional[str],
+        username_selector: Optional[str],
+        password_selector: Optional[str],
+        submit_selector: Optional[str],
+        payloads: Optional[List[str]],
+        out_prefix: str,
+        proxy: Optional[str],
+        headless: bool,
+        page_timeout: int,
 ) -> Dict[str, Any]:
     """
     Blocking worker that uses Selenium to:
@@ -81,7 +82,7 @@ def _selenium_exercise_worker(
     try:
         # install chromedriver via webdriver-manager
         driver_path = ChromeDriverManager().install()
-        driver = webdriver.Chrome(driver_path, options=opts)
+        driver = webdriver.Chrome(driver_path)
         driver.set_page_load_timeout(page_timeout)
 
         # Basic auth via URL if username/password provided and login_type == "basic"
@@ -104,10 +105,12 @@ def _selenium_exercise_worker(
             try:
                 if username_selector:
                     uel = driver.find_element(By.CSS_SELECTOR, username_selector)
-                    uel.clear(); uel.send_keys(username)
+                    uel.clear();
+                    uel.send_keys(username)
                 if password_selector:
                     pel = driver.find_element(By.CSS_SELECTOR, password_selector)
-                    pel.clear(); pel.send_keys(password)
+                    pel.clear();
+                    pel.send_keys(password)
                 if submit_selector:
                     btn = driver.find_element(By.CSS_SELECTOR, submit_selector)
                     btn.click()
@@ -142,10 +145,12 @@ def _selenium_exercise_worker(
             # for each form try to fill text inputs and submit
             try:
                 for form in forms:
-                    inputs = form.find_elements(By.XPATH, ".//input[translate(@type,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='text' or not(@type)] | .//textarea")
+                    inputs = form.find_elements(By.XPATH,
+                                                ".//input[translate(@type,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='text' or not(@type)] | .//textarea")
                     if not inputs:
                         # try input[type=text/email/search]
-                        inputs = form.find_elements(By.XPATH, ".//input[@type='text' or @type='search' or @type='email']")
+                        inputs = form.find_elements(By.XPATH,
+                                                    ".//input[@type='text' or @type='search' or @type='email']")
                     # inject into first few inputs
                     for i_idx, inp in enumerate(inputs[:3]):
                         try:
@@ -204,25 +209,26 @@ def _selenium_exercise_worker(
 
     return res
 
+
 # MCP tool (async) that orchestrates Selenium -> ZAP spider/scan -> report
 @mcp.tool()
 async def zap_selenium_exercise(
-    target_url: str,
-    login_type: Optional[str] = None,            # "basic" or "form" or None
-    login_url: Optional[str] = None,             # for form login
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    username_selector: Optional[str] = None,     # CSS selector for username input
-    password_selector: Optional[str] = None,     # CSS selector for password input
-    submit_selector: Optional[str] = None,       # CSS selector for submit button (optional)
-    payloads: Optional[List[str]] = None,        # list of payloads to try
-    out_prefix: str = "selenium_zap",
-    headless: bool = True,
-    page_timeout: int = 30,
-    proxy_host: Optional[str] = None,
-    run_spider: bool = True,
-    run_active_scan: bool = True,
-    active_scan_timeout: int = 300,
+        target_url: str,
+        login_type: Optional[str] = None,  # "basic" or "form" or None
+        login_url: Optional[str] = None,  # for form login
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        username_selector: Optional[str] = None,  # CSS selector for username input
+        password_selector: Optional[str] = None,  # CSS selector for password input
+        submit_selector: Optional[str] = None,  # CSS selector for submit button (optional)
+        payloads: Optional[List[str]] = None,  # list of payloads to try
+        out_prefix: str = "selenium_zap",
+        headless: bool = True,
+        page_timeout: int = 30,
+        proxy_host: Optional[str] = None,
+        run_spider: bool = True,
+        run_active_scan: bool = True,
+        active_scan_timeout: int = 300,
 ) -> str:
     """
     Orchestrate Selenium-driven interaction (handles Basic/Auth or form login and form payloads)

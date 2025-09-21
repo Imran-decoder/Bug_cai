@@ -6,7 +6,8 @@ from langgraph.prebuilt import create_react_agent
 from dotenv import load_dotenv
 import asyncio
 import os
-from tools import terminal_tool
+from system_prompts import prompt4
+from tools import terminal_tool,search_tool, human_assistant
 # alias zap="/Applications/ZAP.app/Contents/Java/zap.sh"
 
 load_dotenv()
@@ -14,19 +15,20 @@ gemini_key = os.getenv("GEMINI2_API_KEY")
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=gemini_key)
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", "You are a Cybersecurity expert assistant that will help find bugs. "
-                   "Answer the query and use necessary tools. Wrap the output in the required format."),
-        ("placeholder", "{chat_history}"),
-        ("human", "{input}"),
-        ("placeholder", "{agent_scratchpad}"),
-    ]
-)
+# prompt = ChatPromptTemplate.from_messages(
+#     [
+#         ("system", "You are a Cybersecurity expert assistant that will help find bugs. "
+#                    "Answer the query and use necessary tools. Wrap the output in the required format."),
+#         ("placeholder", "{chat_history}"),
+#         ("human", "{input}"),
+#         ("placeholder", "{agent_scratchpad}"),
+#     ]
+# )
+prompt = prompt4
 
 
 # noinspection PyTypeChecker
-async def main():
+async def dynamic(query):
     # ✅ No async with here
     client = MultiServerMCPClient(
         {
@@ -46,6 +48,9 @@ async def main():
 
     tools = await client.get_tools()
     tools.append(terminal_tool)
+    tools.append(search_tool)
+    # tools.append(human_assistant)
+    print(tools)
     agent = create_tool_calling_agent(
         llm=llm,
         prompt=prompt,
@@ -55,11 +60,7 @@ async def main():
     agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     while True:
-        query = str(input("\nEnter Prompt (or type 'exit' to quit): "))
-        if query.strip().lower() == "exit":
-            print("Exiting... Goodbye! 👋")
-            break
-
+        query = query
         try:
             resp = await agent_executor.ainvoke({"input": query})
             print("\n🛡️ Result:\n", resp["output"])
@@ -68,4 +69,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(dynamic())
