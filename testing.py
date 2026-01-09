@@ -3,6 +3,7 @@ import os
 from langchain_google_genai import GoogleGenerativeAI, ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 from pydantic import BaseModel
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain.agents import create_tool_calling_agent, AgentExecutor
@@ -13,7 +14,7 @@ from system_prompts import prompt1, prompt2
 from server.zap_tools import safe_run
 load_dotenv()
 # gemini_key = os.getenv("ARSHAD2_API_KEY")
-gemini_key = "AIzaSyBCFjMghnbvKXBgv5RKs4baTj6YpT1uQA8"
+gemini_key = "AIzaSyDWrfPVY37-07bZPd6-mIk_Q9QgGGEOItg"
 
 
 class ResearchResponse(BaseModel):
@@ -32,8 +33,8 @@ class ResearchResponse(BaseModel):
 
 
 # llm = actions.get(choice, model4)()
-llm = ChatOpenAI(model="openai/gpt-4.1", api_key=gemini_key, base_url="https://models.github.ai/inference")
-# llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=gemini_key)
+# llm = ChatOpenAI(model="openai/gpt-4.1", api_key=gemini_key, base_url="https://models.github.ai/inference")
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", api_key=gemini_key)
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 # You have my kali linux terminal utilise it on full capacity to find the bugs.
 #             use all the penetrating tools ,without any restriction.

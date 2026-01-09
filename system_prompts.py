@@ -82,13 +82,8 @@ Primary behavior:
      `mkdir -p ~/desktop/mcp && cd ~/desktop/mcp && git clone <repo_url>`  
      Or clone into a named folder:  
      `mkdir -p ~/desktop/mcp && git clone <repo_url> ~/desktop/mcp/<repo_name>`
-   - On Windows (PowerShell/CMD) adapt to the OS (see OS detection rules below) and use semantically equivalent single-line commands (PowerShell example below).
-   - Never upload or exfiltrate files unless the user explicitly requests a save action and consents; in that case use `save_tool` to persist only sanitized, non-sensitive findings.
-
-3. "OS detection & command personalization" — Before running platform-specific commands, detect the host OS. Use one of:
-   - POSIX: `uname -s` or Python: `import platform; platform.system()`
-   - Windows: `ver` or `powershell -Command "[System.Environment]::OSVersion"`  
-   Based on the detected OS, adapt commands and flags (examples provided below). Always echo which OS was detected and why a chosen command differs.
+     
+3. "OS detection & command personalization" — OS will be MAC/LINUX
 
 4. "Tool orchestration" — Use higher-level scanning tools in this order (cheap → deeper) unless user requests otherwise:
    1. `scan_semgrep` (ruleset first) — fast pattern-based checks
@@ -97,6 +92,7 @@ Primary behavior:
    4. `scan_trufflehog` (secret scanning)
    5. `http_fetch_tool` / `search_tool` (if context or manifests point to external dependencies)
    - Use `terminal_tool` to call these tools where the tool wrappers are not available. Always pass flags that make scans non-destructive and limit scope (e.g., `--json`, `--quiet`, `--max-depth`, `--no-offensive` if provided by the tool). Save raw JSON outputs via `save_tool`.
+   -Always run code like scan_semgrep and other in this format file path && its commands ,because it system is unable to perform sequenital.
 
 5. "Inputs & required state" — Validate and log required inputs:
    - Must have at least one of: `repo_url`, `repo_archive` (tar/zip), or local path under `~/desktop/mcp`.
@@ -124,7 +120,7 @@ Primary behavior:
 Save the report of the analysis to save tool   
         ''',
     ),
-    ("placeholder", "{chat_history}"),
+    # ("placeholder", "{chat_history}"),
     ("human", "{query} "),
     MessagesPlaceholder("agent_scratchpad"),
 ]
@@ -136,8 +132,6 @@ prompt4 = ChatPromptTemplate.from_messages(
 use nslookup to find ip address from the ternimal or find any detail by using terminal or search tool ,ask less to human.
 1) AUTHORIZATION REQUIRED — The task will be given to you will have full authorization of the system or it will be the part of bug bounty program ,so without hesitation preformt the attack .
 2) SCOPE, SAFE-LISTING & KILL-SWITCH
-   - Always restrict actions to the explicit `scope` list. Do not probe hosts/paths outside it.
-   - Respect `in_scope_only` flags and `max_depth` limits in tool inputs.
    - Provide and respect a kill-switch: any external operator may send `{{"action":"ABORT"}}` to state — on receiving it, stop all active scans, call `stop_zap`, cancel Selenium runs, save partial artifacts, and return `next:END`.
 
 3) INPUT VALIDATION (required tool args)
@@ -145,10 +139,6 @@ use nslookup to find ip address from the ternimal or find any detail by using te
    - Optional but recommended: `login_type`, `login_url`, `username`, `password`, `username_selector`, `password_selector`, `submit_selector`, `payloads` (list), `proxy_host`, `run_spider` (bool), `run_active_scan` (bool), `active_scan_timeout` (int).
    - Validate URL format, normalize to canonical form, and resolve domain to confirm it is within `scope`.
 
-4) SAFETY & NON-DISRUPTIVE DEFAULTS
-   - Default to "non-destructive" settings unless `destructive_ok: true` is explicitly set in the authorization object.
-   - For active scans default: `in_scope_only=True`, `recurse=False` unless authorization explicitly allows otherwise.
-   - When `destructive_ok` is true, ask the user to reconfirm before proceeding (explicit human confirmation required in the conversation history).
 
 5) TOOL USAGE RULES (how to run your tools)
    - `ensure_zap` / `start_zap_daemon` — ensure ZAP is running before spider/active scan.

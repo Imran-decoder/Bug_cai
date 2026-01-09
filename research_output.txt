@@ -60,3 +60,161 @@ Attackers typically:
 {"summary": "WiFi networks expose several ports (e.g., 22, 80, 443, 1900) with common vulnerabilities like weak encryption and misconfigurations. Recommended next step: static analysis of open ports.", "scope": {"included": ["Ports 22, 80, 443, 8080", "Protocols SSH, HTTP, HTTPS, UPnP", "CVEs CVE-2020-12695, CVE-2017-9417"], "excluded": ["Physical layer attacks", "Vendor-specific vulnerabilities"]}, "findings": [{"title": "Port 22 (SSH) - Default Credentials and Brute Force Attacks", "severity": "High", "confidence": 90, "evidence_links": ["https://owasp.org"]}, {"title": "Port 80/443 (HTTP/HTTPS) - Web Interface Vulnerabilities", "severity": "Medium", "confidence": 85, "evidence_links": ["https://nvd.nist.gov"]}, {"title": "Port 1900 (UPnP) - Exploitable for LAN Access", "severity": "High", "confidence": 80, "evidence_links": ["https://www.us-cert.gov"]}], "ioc": ["Ports: 22, 80, 443, 8080, 1900", "Protocols: SSH, HTTP, HTTPS, UPnP", "CVEs: CVE-2020-12695, CVE-2017-9417"], "recommended_route": "Static", "confidence_score": 85}
 ```
 
+--- Research Output ---
+Timestamp: 2025-10-27 21:28:38
+
+{
+  "repo": "/Users/imran/Desktop/mcp/webapp-in-python",
+  "scans": ["semgrep","bandit","pip_audit","trufflehog"],
+  "findings": [
+    {"title": "Flask Debug Mode Enabled", "severity": "HIGH", "path": "app.py:37", "evidence": "app.run(debug=True)", "description": "Detected Flask app with debug=True. Do not deploy to production with this flag enabled as it will leak sensitive information."},
+    {"title": "Hardcoded Secret Key", "severity": "LOW", "path": "app.py:5", "evidence": "app.secret_key=\"securekey\"", "description": "Possible hardcoded secret key found. Keys should not be hardcoded."}
+  ],
+  "artifacts": [
+    "~/desktop/mcp/artifacts/webapp-in-python/semgrep.json",
+    "~/desktop/mcp/artifacts/webapp-in-python/bandit.json",
+    "~/desktop/mcp/artifacts/webapp-in-python/pip_audit.json",
+    "~/desktop/mcp/artifacts/webapp-in-python/trufflehog.json"
+  ]
+}
+
+---
+
+# Executive Summary
+Static security analysis was conducted on the Python web application at `/Users/imran/Desktop/mcp/webapp-in-python` using Semgrep, Bandit, pip-audit, and TruffleHog. Findings indicate the presence of misconfiguration in production deployment and potential issues with secret storage.
+
+## Findings
+### 1. Flask Debug Mode Enabled
+- **Severity:** HIGH
+- **Location:** app.py:37
+- **Evidence:** `app.run(debug=True)`
+- **Description:** Application is running in debug mode, which exposes sensitive information and allows remote code execution. Debug mode should always be disabled in production.
+
+### 2. Hardcoded Secret Key
+- **Severity:** LOW
+- **Location:** app.py:5
+- **Evidence:** `app.secret_key="securekey"`
+- **Description:** Hardcoded secret key was detected. Storing secrets in code can lead to system compromise if exposed. Consider using environment variables for secret storage.
+
+### 3. Dependencies
+No known vulnerabilities found in installed dependencies per pip-audit report.
+
+### 4. Secrets Scanning
+No secrets detected in source code from TruffleHog output.
+
+## Commands Run & Timestamps
+- Semgrep scan: `scan_semgrep /Users/imran/Desktop/mcp/webapp-in-python` @ 2025-10-27
+- Bandit scan: `scan_bandit /Users/imran/Desktop/mcp/webapp-in-python` @ 2025-10-27
+- pip-audit scan: `scan_pip_audit /Users/imran/Desktop/mcp/webapp-in-python` @ 2025-10-27
+- Trufflehog scan: `scan_trufflehog /Users/imran/Desktop/mcp/webapp-in-python` @ 2025-10-27
+
+## Saved Artifacts
+- `~/desktop/mcp/artifacts/webapp-in-python/semgrep.json`
+- `~/desktop/mcp/artifacts/webapp-in-python/bandit.json`
+- `~/desktop/mcp/artifacts/webapp-in-python/pip_audit.json`
+- `~/desktop/mcp/artifacts/webapp-in-python/trufflehog.json`
+
+
+--- Research Output ---
+Timestamp: 2025-10-27 21:43:04
+
+Static analysis summary for /Users/imran/Desktop/mcp/webapp-in-python
+
+---
+Timestamp: 2024-06-27
+
+Semgrep findings:
+- /Users/imran/Desktop/mcp/webapp-in-python/app.py: Detected Flask app with debug=True (line 37). Severity: WARNING.
+
+Bandit findings:
+- /Users/imran/Desktop/mcp/webapp-in-python/app.py: Possible hardcoded password: 'securekey' (line 5). Severity: LOW
+- /Users/imran/Desktop/mcp/webapp-in-python/app.py: Flask app run with debug=True (line 37). Severity: HIGH
+
+Pip audit:
+- No vulnerable dependencies detected.
+
+Trufflehog:
+- No secrets detected.
+
+Commands Executed:
+- scan_semgrep /Users/imran/Desktop/mcp/webapp-in-python
+- scan_bandit /Users/imran/Desktop/mcp/webapp-in-python
+- scan_pip_audit /Users/imran/Desktop/mcp/webapp-in-python
+- scan_trufflehog /Users/imran/Desktop/mcp/webapp-in-python
+
+Artifacts:
+- Semgrep, Bandit, Pip Audit, Trufflehog raw JSON outputs saved for reproducibility.
+
+Remediation Recommendations:
+- Remove hardcoded secrets from your source code.
+- Do not deploy Flask applications with debug=True in production. Use debug=False for safety.
+---
+
+--- Research Output ---
+Timestamp: 2025-10-27 21:54:10
+
+Semgrep and Bandit found high-severity vulnerabilities in webapp-in-python, mainly:
+1. Debug mode enabled in Flask (app.run(debug=True)) [CWE-489], which exposes sensitive internal info and increases RCE risk.
+2. Hardcoded secret_key in Flask config [CWE-259], which risks session compromise.
+
+No vulnerable dependencies (pip-audit OK).
+No secrets found (Trufflehog OK).
+
+Artifacts:
+- Semgrep JSON
+- Bandit JSON
+- pip-audit JSON
+- Trufflehog output
+
+Remediation:
+- Disable debug mode in production.
+- Use environment variables for secrets.
+- Change any real keys if this repo was previously public.
+
+Raw findings and source paths available in the /Users/imran/Desktop/mcp/artifacts/webapp-in-python/ folder.
+
+
+--- Research Output ---
+Timestamp: 2025-10-28 11:23:04
+
+__static_summary_json__:{"repo":"webapp-in-python","scans":["semgrep","bandit","pip_audit","trufflehog"],"findings":[{"title":"Flask debug mode enabled","severity":"HIGH","path":"app.py:37","evidence":"app.run(debug=True)","source":"semgrep,bandit"},{"title":"Hardcoded secret key detected","severity":"LOW","path":"app.py:5","evidence":"app.secret_key=\"securekey\"","source":"bandit"}],"artifacts":["~/desktop/mcp/artifacts/webapp-in-python/semgrep.json","~/desktop/mcp/artifacts/webapp-in-python/bandit.json","~/desktop/mcp/artifacts/webapp-in-python/pip_audit.json","~/desktop/mcp/artifacts/webapp-in-python/trufflehog.json"]}
+
+# Executive Summary
+A static security analysis has been conducted on the Python web application "webapp-in-python" in `~/desktop/mcp/webapp-in-python`. Multiple tools (Semgrep, Bandit, pip-audit, Trufflehog) were used to detect source code vulnerabilities and weak configuration settings. The most notable issues relate to Flask debug mode being enabled and hardcoded secret keys, both of which are high-priority fixes before production use. No vulnerable dependencies or exposed secrets were found by pip-audit and Trufflehog scans.
+
+## Findings
+
+### 1. Flask debug mode enabled
+- **Severity:** HIGH
+- **File:** app.py:37
+- **Evidence:** `app.run(debug=True)`
+- **Context:** Enabling Flask debug mode in production exposes sensitive server-side information and code execution capability through the Werkzeug debugger. See [reference](https://labs.detectify.com/2015/10/02/how-patreon-got-hacked-publicly-exposed-werkzeug-debugger/).
+- **Remediation:** Disable debug mode (`debug=False`) before deploying to production. Use environment variables or configuration management for debug settings.
+
+### 2. Hardcoded secret key detected
+- **Severity:** LOW
+- **File:** app.py:5
+- **Evidence:** `app.secret_key="securekey"`
+- **Context:** Hardcoding secret keys makes the app vulnerable if the codebase is leaked or shared; attackers may reuse the key for session/cookie manipulation.
+- **Remediation:** Use environment variables or a secrets management service for secret keys.
+
+## Dependency Scan (pip-audit)
+- No known vulnerabilities found in dependencies (`flask`, `werkzeug`, etc.)
+
+## Secrets Scan (Trufflehog)
+- No secrets detected by Trufflehog scan.
+
+## Commands Executed
+- scan_semgrep on ~/desktop/mcp/webapp-in-python
+- scan_bandit on ~/desktop/mcp/webapp-in-python
+- scan_pip_audit on ~/desktop/mcp/webapp-in-python
+- scan_trufflehog on ~/desktop/mcp/webapp-in-python
+
+## Artifacts Saved
+- `~/desktop/mcp/artifacts/webapp-in-python/semgrep.json`
+- `~/desktop/mcp/artifacts/webapp-in-python/bandit.json`
+- `~/desktop/mcp/artifacts/webapp-in-python/pip_audit.json`
+- `~/desktop/mcp/artifacts/webapp-in-python/trufflehog.json`
+
+next:END
+

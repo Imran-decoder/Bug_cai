@@ -9,10 +9,15 @@ from langgraph.graph import StateGraph, START, END
 from typing_extensions import TypedDict
 from typing import Annotated
 from langgraph.graph.message import add_messages
+from langchain.memory import ConversationBufferMemory
 from tools import (
     search_tool, wiki_tool, save_tool,
     human_assistant, terminal_tool,
     scan_semgrep, scan_bandit, scan_pip_audit, scan_trufflehog
+)
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True
 )
 from system_prompts import prompt1,prompt2,prompt3,prompt4
 from functions import extract_route
@@ -23,6 +28,17 @@ import asyncio
 import threading
 import concurrent.futures
 from typing import Any
+
+
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True
+)
+def get_last_message_content(state):
+    last = state["messages"][-1]
+    if isinstance(last, dict) and "content" in last:
+        return last["content"]
+    return str(last)
 
 def run_coro_sync(coro) -> Any:
     """
@@ -68,10 +84,10 @@ class State(TypedDict):
 # --------------------Load API keys -------------------------
 load_dotenv()
 # gemini_key = os.getenv("GEMINI_API_KEY")
-gemini2_key = "AIzaSyCJWMLHBWLqzoCvP9wiltjnsMeION8TyuY"
-gemini_key = os.getenv("GEMINI_API_KEY")
-# openai_key = os.getenv("ARSHAD2_API_KEY")
-openai_key = os.getenv("SHAYAN_API_KEY")
+# gemini2_key = "AIzaSyCJWMLHBWLqzoCvP9wiltjnsMeION8TyuY"
+gemini_key = os.getenv("GEMINI2_API_KEY")
+openai_key = os.getenv("ARSHAD2_API_KEY")
+# openai_key = os.getenv("SHAYAN_API_KEY")
 
 
 # -------------------- Node implementations ------------------
@@ -90,8 +106,8 @@ def define_path_gpt(state: State):
         tools=tools,
         prompt=prompt1
     )
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"query": last_message})
+    agent_executor = AgentExecutor(agent=agent, tools=tools, memory=memory, verbose=True)
+    reply = agent_executor.invoke({"query": get_last_message_content(state)})
 
 
     if isinstance(reply, dict):
@@ -124,8 +140,8 @@ def info_spy_step3(state: State):
         prompt=prompt,
         tools=tools
     )
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"query": last_message})
+    agent_executor = AgentExecutor(agent=agent, tools=tools, memory=memory, verbose=True)
+    reply = agent_executor.invoke({"query": get_last_message_content(state)})
 
     # make sure reply is a string
     if isinstance(reply, dict):
@@ -140,7 +156,7 @@ def info_spy_step3(state: State):
 def static_analysis(state: State):
     last_message = state["messages"][-1]
     llm = ChatOpenAI(
-        model="deepseek/DeepSeek-V3-0324",
+        model="openai/gpt-4.1",
         api_key=openai_key,
         base_url="https://models.github.ai/inference"
     )
@@ -156,8 +172,8 @@ def static_analysis(state: State):
     ]
 
     agent = create_tool_calling_agent(llm=llm, prompt=prompt, tools=tools)
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-    reply = agent_executor.invoke({"query": last_message})
+    agent_executor = AgentExecutor(agent=agent, tools=tools, memory=memory, verbose=True)
+    reply = agent_executor.invoke({"query": get_last_message_content(state)})
 
     # make sure reply is a string
     if isinstance(reply, dict):
@@ -216,11 +232,11 @@ def dynamic_analysis(state: dict):
 
     # Create tool-calling agent
     agent = create_tool_calling_agent(llm=llm, prompt=prompt, tools=tools)
-    agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+    agent_executor = AgentExecutor(agent=agent, tools=tools,memory=memory, verbose=True)
 
     # Run agent on last message
     try:
-        reply = run_coro_sync(agent_executor.ainvoke({"query": last_message}))
+        reply = run_coro_sync(agent_executor.ainvoke({"query": get_last_message_content(state)}))
         if isinstance(reply, dict):
             reply_text = reply.get("output", str(reply))
         else:
@@ -263,7 +279,7 @@ def run_orchestrator():
     state: State = {"messages": [], "next": None}
 
     while True:
-        user_input = input("Message: ")
+        user_input = str(input("Message: "))
         if user_input.strip().lower() == "exit":
             print("Bye 👋")
             break

@@ -1,0 +1,10 @@
+{
+  "target_url": "http://testasp.vulnweb.com/Login.asp?RetURL=%2FDefault%2Easp%3F",
+  "ok": false,
+  "errors": [
+    "'str' object has no attribute 'capabilities'"
+  ],
+  "artifacts": {},
+  "timestamp": 1761631016.619543,
+  "payloads_tested": []
+}
